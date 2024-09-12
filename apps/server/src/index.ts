@@ -7,6 +7,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const ALLOWED_ORIGINS = ['http://localhost:5173'];
 const server = createServer(app);
+
 const io = new Server(server, {
   cors: {
     origin: (origin, callback) => {
@@ -49,10 +50,15 @@ io.on('connection', (socket: Socket) => {
     });
   });
 
-  // Handle user disconnection
+  // Handle user disconnection.
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
     socket.broadcast.emit('userDisconnected', socket.id);
+  });
+
+  // Handle disconnect.
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
   });
 });
 

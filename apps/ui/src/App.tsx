@@ -56,6 +56,7 @@ export const App: React.FC = () => {
 
   return (
     <div style={{ position: 'relative', height: '100vh', width: '100vw' }}>
+      <video src="http://localhost:3000/stream" controls autoPlay />
       {Object.entries(cursors).map(([id, cursor]) => (
         <div
           key={id}
