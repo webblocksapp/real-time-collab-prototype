@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebRTC Webcam Stream</title>
+  </head>
+  <body>
+    <video id="webcam" autoplay playsinline></video>
+
+    <script>
+      const ws = new WebSocket('ws://localhost:3000');
+      const peerConnection = new RTCPeerConnection();
+
+      peerConnection.ontrack = (event) => {
+        const video = document.getElementById('webcam');
+        video.srcObject = event.streams[0];
+      };
+
+      ws.onmessage = async (event) => {
+        const data = JSON.parse(event.data);
+
+        if (data.answer) {
+          await peerConnection.setRemoteDescription(data.answer);
+        }
+
+        if (data.candidate) {
+          await peerConnection.addIceCandidate(data.candidate);
+        }
+      };
+
+      ws.onopen = async () => {
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        ws.send(JSON.stringify({ offer }));
+      };
+
+      peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+          ws.send(JSON.stringify({ candidate: event.candidate }));
+        }
+      };
+    </script>
+  </body>
+</html>
