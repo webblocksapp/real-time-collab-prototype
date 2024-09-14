@@ -3,6 +3,7 @@ import http from 'http';
 import net from 'net';
 import { spawn, ChildProcessWithoutNullStreams } from 'child_process';
 import 'log-timestamp';
+import dgram from 'dgram';
 
 const app = express();
 app.use(express.static(__dirname + '/'));
@@ -30,32 +31,65 @@ app.post('/stop', (req: Request, res: Response) => {
 });
 
 // send the video stream
+// app.get('/stream', (req: Request, res: Response) => {
+//   res.writeHead(200, {
+//     'Content-Type': 'video/webm',
+//   });
+
+//   const tcpServer = net.createServer((socket) => {
+//     socket.on('data', (data) => {
+//       res.write(data);
+//     });
+
+//     socket.on('close', (hadError) => {
+//       console.log('Socket closed.');
+//       res.end();
+//     });
+//   });
+
+//   tcpServer.maxConnections = 1;
+
+//   tcpServer.listen(() => {
+//     console.log('Connection started.');
+
+//     if (!gstMuxer) {
+//       console.log('inside gstMuxer == undefined');
+//       const cmd = 'gst-launch-1.0';
+//       const args = getGstPipelineArguments(tcpServer);
+//       console.log(`${cmd} ${args.join(' ')}`);
+//       gstMuxer = spawn(cmd, args);
+
+//       gstMuxer.stderr.on('data', onSpawnError);
+//       gstMuxer.on('exit', onSpawnExit);
+//     } else {
+//       console.log('New GST pipeline rejected because gstMuxer != undefined.');
+//     }
+//   });
+// });
+
 app.get('/stream', (req: Request, res: Response) => {
   res.writeHead(200, {
     'Content-Type': 'video/webm',
   });
 
-  const tcpServer = net.createServer((socket) => {
-    socket.on('data', (data) => {
-      console.log(data);
-      res.write(data);
-    });
+  const udpServer = dgram.createSocket('udp4');
 
-    socket.on('close', (hadError) => {
-      console.log('Socket closed.');
-      res.end();
-    });
+  udpServer.on('message', (message) => {
+    res.write(message);
   });
 
-  tcpServer.maxConnections = 1;
+  udpServer.on('close', () => {
+    console.log('UDP server closed.');
+    res.end();
+  });
 
-  tcpServer.listen(() => {
-    console.log('Connection started.');
+  udpServer.bind(5000, () => {
+    console.log('UDP server listening on port 5000.');
 
     if (!gstMuxer) {
       console.log('inside gstMuxer == undefined');
       const cmd = 'gst-launch-1.0';
-      const args = getGstPipelineArguments(tcpServer);
+      const args = getGstPipelineArguments({ port: udpServer.address().port });
       console.log(`${cmd} ${args.join(' ')}`);
       gstMuxer = spawn(cmd, args);
 
@@ -86,9 +120,10 @@ function onSpawnExit(code: number | null) {
   }
 }
 
-function getGstPipelineArguments(tcpServer: net.Server): string[] {
+function getGstPipelineArguments(params: { port: number }): string[] {
   // Replace 'videotestsrc', 'pattern=ball' with camera source in below GStreamer pipeline arguments.
-  const args: string[] = [
+
+  const CONFIG_1 = [
     'avfvideosrc',
     'device-index=0',
     '!',
@@ -96,14 +131,37 @@ function getGstPipelineArguments(tcpServer: net.Server): string[] {
     '!',
     'x264enc',
     'bitrate=2000',
+    'key-int-max=10',
+    '!',
+    'queue',
     '!',
     'mp4mux',
-    'fragment-duration=10',
+    'fragment-duration=1',
     '!',
     'tcpclientsink',
     'host=localhost',
     //@ts-ignore
-    'port=' + tcpServer.address()?.port,
+    'port=' + params.port,
   ];
+
+  const CONFIG_2 = [
+    'avfvideosrc',
+    'device-index=0',
+    '!',
+    'video/x-raw,width=1920,height=1080',
+    '!',
+    'x264enc',
+    'tune=zerolatency',
+    'key-int-max=1',
+    '!',
+    'rtph264pay',
+    '!',
+    'udpsink',
+    'host=0.0.0.0',
+    //@ts-ignore
+    'port=' + params.port,
+  ];
+
+  const args: string[] = CONFIG_2;
   return args;
 }
