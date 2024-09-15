@@ -70,6 +70,58 @@ importers:
         specifier: ^5.5.4
         version: 5.5.4
 
+  apps/tcp-media-server:
+    dependencies:
+      cors:
+        specifier: ^2.8.5
+        version: 2.8.5
+      express:
+        specifier: ^4.19.2
+        version: 4.19.2
+      jpeg-js:
+        specifier: ^0.4.4
+        version: 0.4.4
+      log-timestamp:
+        specifier: ^0.3.0
+        version: 0.3.0
+      node-media-server:
+        specifier: ^2.7.0
+        version: 2.7.0
+      node-pre-gyp:
+        specifier: ^0.17.0
+        version: 0.17.0
+      socket.io:
+        specifier: ^4.7.5
+        version: 4.7.5
+      wrtc:
+        specifier: 0.4.7
+        version: 0.4.7
+      ws:
+        specifier: ^8.18.0
+        version: 8.18.0
+    devDependencies:
+      '@types/cors':
+        specifier: ^2.8.17
+        version: 2.8.17
+      '@types/express':
+        specifier: ^4.17.21
+        version: 4.17.21
+      '@types/node':
+        specifier: ^22.5.1
+        version: 22.5.1
+      '@types/node-media-server':
+        specifier: ^2.3.7
+        version: 2.3.7
+      '@types/ws':
+        specifier: ^8.5.12
+        version: 8.5.12
+      ts-node-dev:
+        specifier: ^2.0.0
+        version: 2.0.0(@types/node@22.5.1)(typescript@5.5.4)
+      typescript:
+        specifier: ^5.5.4
+        version: 5.5.4
+
   apps/ui:
     dependencies:
       hls.js:
@@ -121,55 +173,31 @@ importers:
 
   apps/webrtc-media-server:
     dependencies:
-      cors:
-        specifier: ^2.8.5
-        version: 2.8.5
       express:
         specifier: ^4.19.2
         version: 4.19.2
-      jpeg-js:
-        specifier: ^0.4.4
-        version: 0.4.4
-      log-timestamp:
-        specifier: ^0.3.0
-        version: 0.3.0
-      node-media-server:
-        specifier: ^2.7.0
-        version: 2.7.0
-      node-pre-gyp:
-        specifier: ^0.17.0
-        version: 0.17.0
+      httpolyglot:
+        specifier: ^0.1.2
+        version: 0.1.2
       socket.io:
         specifier: ^4.7.5
         version: 4.7.5
-      wrtc:
-        specifier: 0.4.7
-        version: 0.4.7
-      ws:
-        specifier: ^8.18.0
-        version: 8.18.0
+      socket.io-client:
+        specifier: ^4.7.5
+        version: 4.7.5
     devDependencies:
-      '@types/cors':
-        specifier: ^2.8.17
-        version: 2.8.17
       '@types/express':
         specifier: ^4.17.21
         version: 4.17.21
       '@types/node':
         specifier: ^22.5.1
         version: 22.5.1
-      '@types/node-media-server':
-        specifier: ^2.3.7
-        version: 2.3.7
-      '@types/ws':
-        specifier: ^8.5.12
-        version: 8.5.12
       ts-node-dev:
         specifier: ^2.0.0
-        version: 2.0.0(@types/node@22.5.1)(typescript@5.5.4)
+        version: 2.0.0(@types/node@22.5.1)(typescript@5.6.2)
       typescript:
-        specifier: ^5.5.4
-        version: 5.5.4
+        specifier: ^5.6.2
+        version: 5.6.2
 
 packages:
 
@@ -2106,6 +2134,11 @@ packages:
       - supports-color
     dev: false
 
+  /httpolyglot@0.1.2:
+    resolution: {integrity: sha512-ouHI1AaQMLgn4L224527S5+vq6hgvqPteurVfbm7ChViM3He2Wa8KP1Ny7pTYd7QKnDSPKcN8JYfC8r/lmsE3A==}
+    engines: {node: '>=0.10.0'}
+    dev: false
+
   /iconv-lite@0.4.24:
     resolution: {integrity: sha512-v3MXnZAcvnywkTUEZomIActle7RXXeedOR31wwl7VlyoXO4Qi9arvSenNQWne1TcRwhCL1HwLI21bEqdpj8/rA==}
     engines: {node: '>=0.10.0'}
@@ -3168,6 +3201,34 @@ packages:
       - '@types/node'
     dev: true
 
+  /ts-node-dev@2.0.0(@types/node@22.5.1)(typescript@5.6.2):
+    resolution: {integrity: sha512-ywMrhCfH6M75yftYvrvNarLEY+SUXtUvU8/0Z6llrHQVBx12GiFk5sStF8UdfE/yfzk9IAq7O5EEbTQsxlBI8w==}
+    engines: {node: '>=0.8.0'}
+    hasBin: true
+    peerDependencies:
+      node-notifier: '*'
+      typescript: '*'
+    peerDependenciesMeta:
+      node-notifier:
+        optional: true
+    dependencies:
+      chokidar: 3.6.0
+      dynamic-dedupe: 0.3.0
+      minimist: 1.2.8
+      mkdirp: 1.0.4
+      resolve: 1.22.8
+      rimraf: 2.7.1
+      source-map-support: 0.5.21
+      tree-kill: 1.2.2
+      ts-node: 10.9.2(@types/node@22.5.1)(typescript@5.6.2)
+      tsconfig: 7.0.0
+      typescript: 5.6.2
+    transitivePeerDependencies:
+      - '@swc/core'
+      - '@swc/wasm'
+      - '@types/node'
+    dev: true
+
   /ts-node@10.9.2(@types/node@22.5.1)(typescript@5.5.4):
     resolution: {integrity: sha512-f0FFpIdcHgn8zcPSbf1dRevwt047YMnaiJM3u2w2RewrB+fob/zePZcrOyQoLMMO7aBIddLcQIEK5dYjkLnGrQ==}
     hasBin: true
@@ -3195,6 +3256,37 @@ packages:
       diff: 4.0.2
       make-error: 1.3.6
       typescript: 5.5.4
+      v8-compile-cache-lib: 3.0.1
+      yn: 3.1.1
+    dev: true
+
+  /ts-node@10.9.2(@types/node@22.5.1)(typescript@5.6.2):
+    resolution: {integrity: sha512-f0FFpIdcHgn8zcPSbf1dRevwt047YMnaiJM3u2w2RewrB+fob/zePZcrOyQoLMMO7aBIddLcQIEK5dYjkLnGrQ==}
+    hasBin: true
+    peerDependencies:
+      '@swc/core': '>=1.2.50'
+      '@swc/wasm': '>=1.2.50'
+      '@types/node': '*'
+      typescript: '>=2.7'
+    peerDependenciesMeta:
+      '@swc/core':
+        optional: true
+      '@swc/wasm':
+        optional: true
+    dependencies:
+      '@cspotcode/source-map-support': 0.8.1
+      '@tsconfig/node10': 1.0.11
+      '@tsconfig/node12': 1.0.11
+      '@tsconfig/node14': 1.0.3
+      '@tsconfig/node16': 1.0.4
+      '@types/node': 22.5.1
+      acorn: 8.12.1
+      acorn-walk: 8.3.3
+      arg: 4.1.3
+      create-require: 1.1.1
+      diff: 4.0.2
+      make-error: 1.3.6
+      typescript: 5.6.2
       v8-compile-cache-lib: 3.0.1
       yn: 3.1.1
     dev: true
@@ -3243,6 +3335,12 @@ packages:
 
   /typescript@5.5.4:
     resolution: {integrity: sha512-Mtq29sKDAEYP7aljRgtPOpTvOfbwRWlS6dPRzwjdE+C0R4brX/GUyhHSecbHMFLNBLcJIPt9nl9yG5TZ1weH+Q==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+    dev: true
+
+  /typescript@5.6.2:
+    resolution: {integrity: sha512-NW8ByodCSNCwZeghjN3o+JX5OFH0Ojg6sadjEKY4huZ52TqbJTJnDo5+Tw98lSy63NZvi4n+ez5m2u5d4PkZyw==}
     engines: {node: '>=14.17'}
     hasBin: true
     dev: true
