@@ -15,12 +15,8 @@ const port = 9001; // change port number if required
 let gstMuxer: ChildProcessWithoutNullStreams | undefined;
 
 // send the HTML page that holds the video tag
-app.get('/tcp', (_: Request, res: Response) => {
-  res.sendFile(__dirname + '/tcp.html');
-});
-
-app.get('/udp', (_: Request, res: Response) => {
-  res.sendFile(__dirname + '/udp.html');
+app.get('/', (_: Request, res: Response) => {
+  res.sendFile(__dirname + '/index.html');
 });
 
 // stop the connection
@@ -90,6 +86,9 @@ app.get('/stream-tcp', (req: Request, res: Response) => {
   });
 });
 
+/**
+ * Not working
+ */
 app.get('/stream-udp', (req: Request, res: Response) => {
   const udpServer = dgram.createSocket('udp4');
 
