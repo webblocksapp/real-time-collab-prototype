@@ -11,8 +11,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@httptoolkit/httpolyglot": "^2.2.1",
     "express": "^4.19.2",
-    "httpolyglot": "^0.1.2",
     "socket.io": "^4.7.5",
     "socket.io-client": "^4.7.5"
   },

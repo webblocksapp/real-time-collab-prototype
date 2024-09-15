@@ -1,14 +1,25 @@
 import express, { Request, Response } from 'express';
-import http from 'http';
+import * as https from '@httptoolkit/httpolyglot';
+import fs from 'fs';
+import { ServerOptions } from 'https';
+import { Server } from 'socket.io';
+import { Http2Server } from 'http2';
 
 const app = express();
-app.use(express.static(__dirname + '/'));
 const PORT = 3000;
 
-const server = http.createServer(app);
+const options: ServerOptions = {
+  key: fs.readFileSync(__dirname + '/ssl/key.pem', 'utf-8'),
+  cert: fs.readFileSync(__dirname + '/ssl/cert.pem', 'utf-8'),
+};
+const server = https.createServer(options, app);
+const io = new Server(server as unknown as Http2Server);
 
-app.get('/', (_: Request, res: Response) => {
-  res.sendFile(__dirname + '/index.html');
+const peers = io.of('/mediasoup');
+
+peers.on('connection', (socket) => {
+  console.log(socket.id);
+  socket.emit('connection-success', { socketId: socket.id });
 });
 
 server.listen(PORT, () => {
