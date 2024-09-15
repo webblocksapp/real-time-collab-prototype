@@ -1,8 +1,18 @@
+import { useEffect, useMemo } from 'react';
 import './App.css';
+import io from 'socket.io-client';
 
 function App() {
+  const socket = useMemo(() => io('http://localhost:3000/mediasoup'), []);
+
+  useEffect(() => {
+    socket.on('connection-success', ({ socketId }) => {
+      console.log(socketId);
+    });
+  }, []);
+
   return (
-    <body>
+    <div>
       <div id="video">
         <table>
           <thead>
@@ -69,7 +79,7 @@ function App() {
           </tbody>
         </table>
       </div>
-    </body>
+    </div>
   );
 }
 

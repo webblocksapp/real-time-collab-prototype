@@ -1,19 +1,39 @@
-import express, { Request, Response } from 'express';
-import * as https from '@httptoolkit/httpolyglot';
-import fs from 'fs';
-import { ServerOptions } from 'https';
+import express from 'express';
+import http from 'http';
+import cors from 'cors';
 import { Server } from 'socket.io';
 import { Http2Server } from 'http2';
 
 const app = express();
 const PORT = 3000;
+const ALLOWED_ORIGINS = ['http://localhost:5173'];
 
-const options: ServerOptions = {
-  key: fs.readFileSync(__dirname + '/ssl/key.pem', 'utf-8'),
-  cert: fs.readFileSync(__dirname + '/ssl/cert.pem', 'utf-8'),
-};
-const server = https.createServer(options, app);
-const io = new Server(server as unknown as Http2Server);
+const server = http.createServer(app);
+const io = new Server(server as unknown as Http2Server, {
+  cors: {
+    origin: (origin, callback) => {
+      if (!origin || ALLOWED_ORIGINS.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    methods: ['GET', 'POST'],
+  },
+});
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || ALLOWED_ORIGINS.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+  })
+);
 
 const peers = io.of('/mediasoup');
 

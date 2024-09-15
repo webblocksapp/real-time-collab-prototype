@@ -12,11 +12,12 @@
   "license": "ISC",
   "dependencies": {
     "@httptoolkit/httpolyglot": "^2.2.1",
+    "cors": "^2.8.5",
     "express": "^4.19.2",
-    "socket.io": "^4.7.5",
-    "socket.io-client": "^4.7.5"
+    "socket.io": "^4.7.5"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/node": "^22.5.1",
     "ts-node-dev": "^2.0.0",
