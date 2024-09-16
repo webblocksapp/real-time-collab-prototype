@@ -213,6 +213,7 @@ function App() {
 
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = new MediaStream([track]);
+        socket.emit('consumer-resume');
       }
     });
   };

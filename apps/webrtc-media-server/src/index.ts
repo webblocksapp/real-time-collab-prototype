@@ -169,6 +169,47 @@ const main = async () => {
       console.log('DTLS PARAMS', { dtlsParameters });
       await consumerTransport?.connect({ dtlsParameters });
     });
+
+    socket.on('consume', async ({ rtpCapabilities }) => {
+      try {
+        if (producer?.id === undefined) {
+          throw new Error('Producer is undefined');
+        }
+        if (router.canConsume({ producerId: producer?.id, rtpCapabilities })) {
+          consumer = await consumerTransport?.consume({
+            producerId: producer?.id,
+            rtpCapabilities,
+            paused: true,
+          });
+        }
+
+        consumer?.on('transportclose', () => {
+          console.log('transport close from consumer');
+        });
+
+        consumer?.on('producerclose', () => {
+          console.log('producer of consumer closed');
+        });
+
+        const params = {
+          id: consumer?.id,
+          producerId: producer?.id,
+          kind: consumer?.kind,
+          rtpParameters: consumer?.rtpParameters,
+        };
+
+        socket.emit('consume', { params });
+      } catch (error) {
+        if (error instanceof Error) {
+          socket.emit('consume', { params: { error } });
+        }
+      }
+    });
+
+    socket.on('consumer-resume', async () => {
+      console.log('consumer resume');
+      await consumer?.resume();
+    });
   });
 
   server.listen(PORT, () => {
