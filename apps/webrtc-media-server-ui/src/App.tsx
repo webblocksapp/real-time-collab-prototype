@@ -25,6 +25,7 @@ function App() {
     producerTransport?: mediasoupClient.types.Transport<mediasoupClient.types.AppData>;
     consumerTransport?: mediasoupClient.types.Transport<mediasoupClient.types.AppData>;
     producer?: mediasoupClient.types.Producer<mediasoupClient.types.AppData>;
+    consumer?: mediasoupClient.types.Consumer<mediasoupClient.types.AppData>;
   }>({});
 
   const getLocalStream = async () => {
@@ -186,6 +187,36 @@ function App() {
     });
   };
 
+  const connectRecvTransport = async () => {
+    socket.emit('consume', {
+      rtpCapabilities: ref.current.rtpCapabilities,
+    });
+    socket.on('consume', async ({ params }) => {
+      if (params.error) {
+        console.log('Cannot consume');
+      }
+
+      console.log(params);
+      ref.current.consumer = await ref.current.consumerTransport?.consume({
+        id: params.id,
+        producerId: params.producerId,
+        kind: params.kind,
+        rtpParameters: params.rtpParameters,
+      });
+
+      if (ref.current.consumer === undefined) {
+        console.error('Consumer is not defined');
+        return;
+      }
+
+      const { track } = ref.current.consumer;
+
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = new MediaStream([track]);
+      }
+    });
+  };
+
   useEffect(() => {
     socket.on('connection-success', ({ socketId }) => {
       console.log(socketId);
@@ -261,7 +292,7 @@ function App() {
                     6. Create Recv Transport
                   </button>
                   <br />
-                  <button id="btnConnectRecvTransport">
+                  <button onClick={connectRecvTransport}>
                     7. Connect Recv Transport & Consume
                   </button>
                 </div>
