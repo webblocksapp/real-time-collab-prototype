@@ -1,7 +1,7 @@
 import express from 'express';
 import http from 'http';
 import cors from 'cors';
-import { Server } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import { Http2Server } from 'http2';
 import * as mediasoup from 'mediasoup';
 
@@ -41,6 +41,13 @@ const main = async () => {
 
   let worker: mediasoup.types.Worker<mediasoup.types.AppData>;
   let router: mediasoup.types.Router<mediasoup.types.AppData>;
+  let producerTransport:
+    | mediasoup.types.WebRtcTransport<mediasoup.types.WebRtcTransportData>
+    | undefined;
+  let consumerTransport:
+    | mediasoup.types.WebRtcTransport<mediasoup.types.WebRtcTransportData>
+    | undefined;
+  let producer: mediasoup.types.Producer<mediasoup.types.AppData> | undefined;
 
   const createWorker = async () => {
     worker = await mediasoup.createWorker({
@@ -53,6 +60,46 @@ const main = async () => {
       setTimeout(() => process.exit(1), 2000);
     });
     return worker;
+  };
+
+  const createWebRtcTransport = async (socket: Socket) => {
+    try {
+      const webRtcTransport_options: mediasoup.types.WebRtcTransportOptions<mediasoup.types.WebRtcTransportData> =
+        {
+          listenIps: [{ ip: '127.0.0.1' }],
+          enableUdp: true,
+          enableTcp: true,
+          preferUdp: true,
+        };
+
+      let transport = await router.createWebRtcTransport(
+        webRtcTransport_options
+      );
+
+      console.log(`transport id: ${transport.id}`);
+      transport.on('dtlsstatechange', (dtlsstate) => {
+        if (dtlsstate === 'closed') {
+          transport.close();
+        }
+      });
+
+      transport.on('@close', () => {
+        console.log('Transport closed');
+      });
+
+      socket.emit('createWebRtcTransport', {
+        params: {
+          id: transport.id,
+          iceParameters: transport.iceParameters,
+          iceCandidates: transport.iceCandidates,
+          dtlsParameters: transport.dtlsParameters,
+        },
+      });
+
+      return transport;
+    } catch (error) {
+      socket.emit('createWebRtcTransport', { params: { error } });
+    }
   };
 
   worker = await createWorker();
@@ -84,11 +131,35 @@ const main = async () => {
 
     router = await worker.createRouter({ mediaCodecs });
 
-    socket.on('getRtpCapabilities', (callback) => {
+    socket.on('getRtpCapabilities', () => {
       const rtpCapabilities = router.rtpCapabilities;
       console.log('rtp capabilities', rtpCapabilities);
+      socket.emit('getRtpCapabilities', { rtpCapabilities });
+    });
 
-      callback({ rtpCapabilities });
+    socket.on('createWebRtcTransport', async ({ sender }) => {
+      if (sender) {
+        producerTransport = await createWebRtcTransport(socket);
+      }
+    });
+
+    socket.on('transport-connect', async ({ dtlsParameters }) => {
+      console.log('DTLS PARAMS', { dtlsParameters });
+      await producerTransport?.connect({ dtlsParameters });
+    });
+
+    socket.on('transport-produce', async ({ kind, rtpParameters }) => {
+      producer = await producerTransport?.produce({
+        kind,
+        rtpParameters,
+      });
+
+      producer?.on('transportclose', () => {
+        console.log('Transport for this producer closed');
+        producer?.close();
+      });
+
+      socket.emit('transport-produce', { id: producer?.id });
     });
   });
 

@@ -3,6 +3,18 @@ import './App.css';
 import io from 'socket.io-client';
 import * as mediasoupClient from 'mediasoup-client';
 
+let params: mediasoupClient.types.ProducerOptions<mediasoupClient.types.AppData> =
+  {
+    encodings: [
+      { rid: 'r0', maxBitrate: 100000, scalabilityMode: 'S1T3' },
+      { rid: 'r1', maxBitrate: 300000, scalabilityMode: 'S1T3' },
+      { rid: 'r2', maxBitrate: 900000, scalabilityMode: 'S1T3' },
+    ],
+    codecOptions: {
+      videoGoogleStartBitrate: 1000,
+    },
+  };
+
 function App() {
   const socket = useMemo(() => io('http://localhost:3000/mediasoup'), []);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -10,6 +22,8 @@ function App() {
   const ref = useRef<{
     device?: mediasoupClient.types.Device;
     rtpCapabilities?: mediasoupClient.types.RtpCapabilities;
+    producerTransport?: mediasoupClient.types.Transport<mediasoupClient.types.AppData>;
+    producer?: mediasoupClient.types.Producer<mediasoupClient.types.AppData>;
   }>({});
 
   const getLocalStream = async () => {
@@ -31,6 +45,7 @@ function App() {
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
         const track = stream.getVideoTracks()[0];
+        params = { ...params, track };
       }
     } catch (error) {
       if (error instanceof Error) {
@@ -40,7 +55,8 @@ function App() {
   };
 
   const getRtpCapabilities = () => {
-    socket.emit(
+    socket.emit('getRtpCapabilities');
+    socket.on(
       'getRtpCapabilities',
       (data: { rtpCapabilities: mediasoupClient.types.RtpCapabilities }) => {
         console.log(`Router RTP Capabilities... ${data.rtpCapabilities}`);
@@ -68,6 +84,75 @@ function App() {
         console.warn('Browser not supported');
       }
     }
+  };
+
+  const createSendTransport = () => {
+    socket.emit('createWebRtcTransport', { sender: true });
+    socket.on('createWebRtcTransport', ({ params }) => {
+      if (params.error) {
+        console.log(params.error);
+      }
+
+      console.log(params);
+
+      if (ref.current.device === undefined) {
+        console.error('No device found');
+        return;
+      }
+
+      ref.current.producerTransport =
+        ref.current.device.createSendTransport(params);
+
+      ref.current.producerTransport.on(
+        'connect',
+        async ({ dtlsParameters }, callback, errback) => {
+          try {
+            socket.emit('transport-connect', {
+              transportId: ref.current.producerTransport?.id,
+              dtlsParameters,
+            });
+
+            callback();
+          } catch (error) {
+            if (error instanceof Error) errback(error);
+          }
+        }
+      );
+
+      ref.current.producerTransport.on(
+        'produce',
+        async (parameters, callback, errback) => {
+          console.log(parameters);
+
+          try {
+            socket.emit(
+              'transport-produce',
+              {
+                kind: parameters.kind,
+                rtpParameters: parameters.rtpParameters,
+                appData: parameters.appData,
+              },
+              ({ id }: { id: string }) => {
+                callback({ id });
+              }
+            );
+          } catch (error) {
+            if (error instanceof Error) errback(error);
+          }
+        }
+      );
+    });
+  };
+
+  const connectSendTransport = async () => {
+    ref.current.producer = await ref.current.producerTransport?.produce(params);
+    ref.current.producer?.on?.('trackended', () => {
+      console.log('Track ended');
+    });
+
+    ref.current.producer?.on?.('transportclose', () => {
+      console.log('Transport ended');
+    });
   };
 
   useEffect(() => {
@@ -130,11 +215,11 @@ function App() {
             <tr>
               <td>
                 <div id="sharedBtns">
-                  <button id="btnCreateSendTransport">
+                  <button onClick={createSendTransport}>
                     4. Create Send Transport
                   </button>
                   <br />
-                  <button id="btnConnectSendTransport">
+                  <button onClick={connectSendTransport}>
                     5. Connect Send Transport & Produce
                   </button>
                 </div>
