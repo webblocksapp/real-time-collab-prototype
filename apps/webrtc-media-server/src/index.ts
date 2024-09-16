@@ -40,7 +40,7 @@ const main = async () => {
   const peers = io.of('/mediasoup');
 
   let worker: mediasoup.types.Worker<mediasoup.types.AppData>;
-  let router;
+  let router: mediasoup.types.Router<mediasoup.types.AppData>;
 
   const createWorker = async () => {
     worker = await mediasoup.createWorker({
@@ -83,6 +83,13 @@ const main = async () => {
     });
 
     router = await worker.createRouter({ mediaCodecs });
+
+    socket.on('getRtpCapabilities', (callback) => {
+      const rtpCapabilities = router.rtpCapabilities;
+      console.log('rtp capabilities', rtpCapabilities);
+
+      callback({ rtpCapabilities });
+    });
   });
 
   server.listen(PORT, () => {

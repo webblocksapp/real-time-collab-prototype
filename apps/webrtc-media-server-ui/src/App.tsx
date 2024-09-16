@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useRef } from 'react';
 import './App.css';
 import io from 'socket.io-client';
+import * as mediasoupClient from 'mediasoup-client';
 
 function App() {
   const socket = useMemo(() => io('http://localhost:3000/mediasoup'), []);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+  const ref = useRef<{
+    device?: mediasoupClient.types.Device;
+    rtpCapabilities?: mediasoupClient.types.RtpCapabilities;
+  }>({});
 
   const getLocalStream = async () => {
     try {
@@ -30,6 +35,37 @@ function App() {
     } catch (error) {
       if (error instanceof Error) {
         console.log(error.message);
+      }
+    }
+  };
+
+  const getRtpCapabilities = () => {
+    socket.emit(
+      'getRtpCapabilities',
+      (data: { rtpCapabilities: mediasoupClient.types.RtpCapabilities }) => {
+        console.log(`Router RTP Capabilities... ${data.rtpCapabilities}`);
+        ref.current.rtpCapabilities = data.rtpCapabilities;
+      }
+    );
+  };
+
+  const createDevice = async () => {
+    try {
+      ref.current.device = new mediasoupClient.Device();
+
+      if (ref.current.rtpCapabilities === undefined) {
+        throw new Error('Please get Rtp capabilities first');
+      }
+
+      await ref.current.device.load({
+        routerRtpCapabilities: ref.current.rtpCapabilities,
+      });
+
+      console.log('RTP capabilities', ref.current.device.rtpCapabilities);
+    } catch (error) {
+      console.log(error);
+      if (error instanceof Error && error.name === 'UnsupportedError') {
+        console.warn('Browser not supported');
       }
     }
   };
@@ -83,11 +119,11 @@ function App() {
             <tr>
               <td colSpan={2}>
                 <div id="sharedBtns">
-                  <button id="btnRtpCapabilities">
+                  <button onClick={getRtpCapabilities}>
                     2. Get Rtp Capabilities
                   </button>
                   <br />
-                  <button id="btnDevice">3. Create Device</button>
+                  <button onClick={createDevice}>3. Create Device</button>
                 </div>
               </td>
             </tr>
