@@ -23,6 +23,7 @@ function App() {
     device?: mediasoupClient.types.Device;
     rtpCapabilities?: mediasoupClient.types.RtpCapabilities;
     producerTransport?: mediasoupClient.types.Transport<mediasoupClient.types.AppData>;
+    consumerTransport?: mediasoupClient.types.Transport<mediasoupClient.types.AppData>;
     producer?: mediasoupClient.types.Producer<mediasoupClient.types.AppData>;
   }>({});
 
@@ -155,6 +156,36 @@ function App() {
     });
   };
 
+  const createRecvTransport = async () => {
+    socket.emit('createWebRtcTransport', { sender: false });
+    socket.on('createWebRtcTransport', ({ params }) => {
+      if (params.error) {
+        console.log(params.error);
+        return;
+      }
+
+      console.log(params);
+
+      ref.current.consumerTransport =
+        ref.current.device?.createRecvTransport(params);
+
+      ref.current.consumerTransport?.on(
+        'connect',
+        async ({ dtlsParameters }, callback, errback) => {
+          try {
+            socket.emit('transport-recv-connect', {
+              dtlsParameters,
+            });
+
+            callback();
+          } catch (error) {
+            if (error instanceof Error) errback(error);
+          }
+        }
+      );
+    });
+  };
+
   useEffect(() => {
     socket.on('connection-success', ({ socketId }) => {
       console.log(socketId);
@@ -226,7 +257,7 @@ function App() {
               </td>
               <td>
                 <div id="sharedBtns">
-                  <button id="btnRecvSendTransport">
+                  <button onClick={createRecvTransport}>
                     6. Create Recv Transport
                   </button>
                   <br />

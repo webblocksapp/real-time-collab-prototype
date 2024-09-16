@@ -48,6 +48,7 @@ const main = async () => {
     | mediasoup.types.WebRtcTransport<mediasoup.types.WebRtcTransportData>
     | undefined;
   let producer: mediasoup.types.Producer<mediasoup.types.AppData> | undefined;
+  let consumer: mediasoup.types.Consumer<mediasoup.types.AppData> | undefined;
 
   const createWorker = async () => {
     worker = await mediasoup.createWorker({
@@ -140,6 +141,8 @@ const main = async () => {
     socket.on('createWebRtcTransport', async ({ sender }) => {
       if (sender) {
         producerTransport = await createWebRtcTransport(socket);
+      } else {
+        consumerTransport = await createWebRtcTransport(socket);
       }
     });
 
@@ -160,6 +163,11 @@ const main = async () => {
       });
 
       socket.emit('transport-produce', { id: producer?.id });
+    });
+
+    socket.on('transport-recv-connect', async ({ dtlsParameters }) => {
+      console.log('DTLS PARAMS', { dtlsParameters });
+      await consumerTransport?.connect({ dtlsParameters });
     });
   });
 
