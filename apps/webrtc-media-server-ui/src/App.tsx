@@ -1,9 +1,38 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import './App.css';
 import io from 'socket.io-client';
 
 function App() {
   const socket = useMemo(() => io('http://localhost:3000/mediasoup'), []);
+  const localVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  const getLocalStream = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          width: {
+            min: 640,
+            max: 1920,
+          },
+          height: {
+            min: 480,
+            max: 1080,
+          },
+        },
+      });
+
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+        const track = stream.getVideoTracks()[0];
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        console.log(error.message);
+      }
+    }
+  };
 
   useEffect(() => {
     socket.on('connection-success', ({ socketId }) => {
@@ -25,19 +54,29 @@ function App() {
             <tr>
               <td>
                 <div id="sharedBtns">
-                  <video id="localVideo" autoPlay className="video"></video>
+                  <video
+                    ref={localVideoRef}
+                    id="localVideo"
+                    autoPlay
+                    className="video"
+                  ></video>
                 </div>
               </td>
               <td>
                 <div id="sharedBtns">
-                  <video id="remoteVideo" autoPlay className="video"></video>
+                  <video
+                    ref={remoteVideoRef}
+                    id="remoteVideo"
+                    autoPlay
+                    className="video"
+                  ></video>
                 </div>
               </td>
             </tr>
             <tr>
               <td>
                 <div id="sharedBtns">
-                  <button id="btnLocalVideo">1. Get Local Video</button>
+                  <button onClick={getLocalStream}>1. Get Local Video</button>
                 </div>
               </td>
             </tr>
