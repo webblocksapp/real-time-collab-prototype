@@ -3,21 +3,8 @@ import './App.css';
 import io from 'socket.io-client';
 import * as mediasoupClient from 'mediasoup-client';
 
-let params: mediasoupClient.types.ProducerOptions<mediasoupClient.types.AppData> =
-  {
-    encodings: [
-      { rid: 'r0', maxBitrate: 100000, scalabilityMode: 'S1T3' },
-      { rid: 'r1', maxBitrate: 300000, scalabilityMode: 'S1T3' },
-      { rid: 'r2', maxBitrate: 900000, scalabilityMode: 'S1T3' },
-    ],
-    codecOptions: {
-      videoGoogleStartBitrate: 1000,
-    },
-  };
-
 function App() {
   const socket = useMemo(() => io('http://localhost:3000/mediasoup'), []);
-  const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const ref = useRef<{
     device?: mediasoupClient.types.Device;
@@ -27,34 +14,6 @@ function App() {
     producer?: mediasoupClient.types.Producer<mediasoupClient.types.AppData>;
     consumer?: mediasoupClient.types.Consumer<mediasoupClient.types.AppData>;
   }>({});
-
-  const getLocalStream = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: {
-          width: {
-            min: 640,
-            max: 1920,
-          },
-          height: {
-            min: 480,
-            max: 1080,
-          },
-        },
-      });
-
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-        const track = stream.getVideoTracks()[0];
-        params = { ...params, track };
-      }
-    } catch (error) {
-      if (error instanceof Error) {
-        console.log(error.message);
-      }
-    }
-  };
 
   const getRtpCapabilities = () => {
     socket.emit('getRtpCapabilities');
@@ -88,78 +47,13 @@ function App() {
     }
   };
 
-  const createSendTransport = () => {
-    socket.emit('createWebRtcTransport', { sender: true });
-    socket.on('createWebRtcTransport', ({ params }) => {
-      if (params.error) {
-        console.log(params.error);
-      }
-
-      console.log(params);
-
-      if (ref.current.device === undefined) {
-        console.error('No device found');
-        return;
-      }
-
-      ref.current.producerTransport =
-        ref.current.device.createSendTransport(params);
-
-      ref.current.producerTransport.on(
-        'connect',
-        async ({ dtlsParameters }, callback, errback) => {
-          try {
-            socket.emit('transport-connect', {
-              transportId: ref.current.producerTransport?.id,
-              dtlsParameters,
-            });
-
-            callback();
-          } catch (error) {
-            if (error instanceof Error) errback(error);
-          }
-        }
-      );
-
-      ref.current.producerTransport.on(
-        'produce',
-        async (parameters, callback, errback) => {
-          console.log(parameters);
-
-          try {
-            socket.emit(
-              'transport-produce',
-              {
-                kind: parameters.kind,
-                rtpParameters: parameters.rtpParameters,
-                appData: parameters.appData,
-              },
-              ({ id }: { id: string }) => {
-                callback({ id });
-              }
-            );
-          } catch (error) {
-            if (error instanceof Error) errback(error);
-          }
-        }
-      );
-    });
-  };
-
-  const connectSendTransport = async () => {
-    ref.current.producer = await ref.current.producerTransport?.produce(params);
-    ref.current.producer?.on?.('trackended', () => {
-      console.log('Track ended');
-    });
-
-    ref.current.producer?.on?.('transportclose', () => {
-      console.log('Transport ended');
-    });
+  const createTransport = () => {
+    socket.emit('createTransport', { sender: true });
   };
 
   const createRecvTransport = async () => {
-    socket.emit('createWebRtcTransport', { sender: false });
-    socket.on('createWebRtcTransport', ({ params }) => {
+    socket.emit('createTransport', { sender: false });
+    socket.on('createTransport', ({ params }) => {
       if (params.error) {
         console.log(params.error);
         return;
@@ -230,22 +124,11 @@ function App() {
         <table>
           <thead>
             <tr>
-              <th>Local Video</th>
               <th>Remote Video</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td>
-                <div id="sharedBtns">
-                  <video
-                    ref={localVideoRef}
-                    id="localVideo"
-                    autoPlay
-                    className="video"
-                  ></video>
-                </div>
-              </td>
               <td>
                 <div id="sharedBtns">
                   <video
@@ -258,43 +141,28 @@ function App() {
               </td>
             </tr>
             <tr>
-              <td>
-                <div id="sharedBtns">
-                  <button onClick={getLocalStream}>1. Get Local Video</button>
-                </div>
-              </td>
-            </tr>
-            <tr>
               <td colSpan={2}>
                 <div id="sharedBtns">
                   <button onClick={getRtpCapabilities}>
-                    2. Get Rtp Capabilities
+                    1. Get Rtp Capabilities
                   </button>
                   <br />
-                  <button onClick={createDevice}>3. Create Device</button>
+                  <button onClick={createDevice}>2. Create Device</button>
                 </div>
               </td>
             </tr>
             <tr>
               <td>
                 <div id="sharedBtns">
-                  <button onClick={createSendTransport}>
-                    4. Create Send Transport
+                  <button onClick={createTransport}>
+                    3. Create Send Transport
                   </button>
-                  <br />
-                  <button onClick={connectSendTransport}>
-                    5. Connect Send Transport & Produce
-                  </button>
-                </div>
-              </td>
-              <td>
-                <div id="sharedBtns">
                   <button onClick={createRecvTransport}>
-                    6. Create Recv Transport
+                    4. Create Recv Transport
                   </button>
                   <br />
                   <button onClick={connectRecvTransport}>
-                    7. Connect Recv Transport & Consume
+                    5. Connect Recv Transport & Consume
                   </button>
                 </div>
               </td>

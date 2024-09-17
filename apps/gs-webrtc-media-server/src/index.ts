@@ -5,10 +5,33 @@ import { Server, Socket } from 'socket.io';
 import { Http2Server } from 'http2';
 import * as mediasoup from 'mediasoup';
 
+const mediasoupConfig = {
+  worker: {
+    rtcMinPort: 10000,
+    rtcMaxPort: 10100,
+  },
+  router: {
+    mediaCodecs: [
+      {
+        kind: 'video',
+        mimeType: 'video/H264',
+        clockRate: 90000,
+        parameters: {},
+      },
+    ],
+  },
+  transport: {
+    listenIp: '127.0.0.1',
+    rtcpMux: true,
+    comedia: false,
+  },
+};
+
 const main = async () => {
   const app = express();
   const PORT = 3000;
   const ALLOWED_ORIGINS = ['http://localhost:5173'];
+  const UDP_PORT = 5000; // Puerto para recibir paquetes UDP desde GStreamer
 
   const server = http.createServer(app);
   const io = new Server(server as unknown as Http2Server, {
@@ -42,7 +65,7 @@ const main = async () => {
   let worker: mediasoup.types.Worker<mediasoup.types.AppData>;
   let router: mediasoup.types.Router<mediasoup.types.AppData>;
   let producerTransport:
-    | mediasoup.types.WebRtcTransport<mediasoup.types.WebRtcTransportData>
+    | mediasoup.types.PlainTransport<mediasoup.types.AppData>
     | undefined;
   let consumerTransport:
     | mediasoup.types.WebRtcTransport<mediasoup.types.WebRtcTransportData>
@@ -52,8 +75,8 @@ const main = async () => {
 
   const createWorker = async () => {
     worker = await mediasoup.createWorker({
-      rtcMinPort: 2000,
-      rtcMaxPort: 2020,
+      rtcMinPort: mediasoupConfig.worker.rtcMinPort,
+      rtcMaxPort: mediasoupConfig.worker.rtcMaxPort,
     });
     console.log(`worker pid ${worker.pid}`);
     worker.on('died', () => {
@@ -61,6 +84,22 @@ const main = async () => {
       setTimeout(() => process.exit(1), 2000);
     });
     return worker;
+  };
+
+  const createRtpTransport = async () => {
+    // Crear un PlainRtpTransport en lugar de WebRtcTransport
+    const plainTransport = await router.createPlainTransport({
+      listenIp: mediasoupConfig.transport.listenIp,
+      rtcpMux: mediasoupConfig.transport.rtcpMux, // True si usas RTCP multiplexado, lo que parece ser el caso
+      comedia: mediasoupConfig.transport.comedia, // False si no deseas habilitar comedia
+      port: 5000, // Ajusta el puerto aquí
+    });
+
+    console.log(
+      `PlainRtpTransport listening on IP ${plainTransport.tuple.localIp} and port ${plainTransport.tuple.localPort}`
+    );
+
+    return plainTransport;
   };
 
   const createWebRtcTransport = async (socket: Socket) => {
@@ -77,7 +116,7 @@ const main = async () => {
         webRtcTransport_options
       );
 
-      console.log(`transport id: ${transport.id}`);
+      console.log(`webrtc transport id: ${transport.id}`);
       transport.on('dtlsstatechange', (dtlsstate) => {
         if (dtlsstate === 'closed') {
           transport.close();
@@ -88,7 +127,7 @@ const main = async () => {
         console.log('Transport closed');
       });
 
-      socket.emit('createWebRtcTransport', {
+      socket.emit('createTransport', {
         params: {
           id: transport.id,
           iceParameters: transport.iceParameters,
@@ -99,7 +138,8 @@ const main = async () => {
 
       return transport;
     } catch (error) {
-      socket.emit('createWebRtcTransport', { params: { error } });
+      console.log(error);
+      socket.emit('createTransport', { params: { error } });
     }
   };
 
@@ -114,7 +154,7 @@ const main = async () => {
     },
     {
       kind: 'video',
-      mimeType: 'video/VP8',
+      mimeType: 'video/H264',
       clockRate: 90000,
       parameters: {
         'x-google-start-bitrate': 1000,
@@ -138,31 +178,29 @@ const main = async () => {
       socket.emit('getRtpCapabilities', { rtpCapabilities });
     });
 
-    socket.on('createWebRtcTransport', async ({ sender }) => {
+    socket.on('createTransport', async ({ sender }) => {
+      console.log({ sender });
       if (sender) {
-        producerTransport = await createWebRtcTransport(socket);
+        producerTransport = await createRtpTransport();
+        producer = await producerTransport?.produce({
+          kind: 'video',
+          rtpParameters: {
+            codecs: [
+              {
+                mimeType: 'video/H264',
+                clockRate: 90000,
+                payloadType: 101,
+              },
+            ],
+            encodings: [{ ssrc: 21233452222 }],
+          },
+          paused: false,
+        });
+
+        console.log(`Producer created`, producer);
       } else {
         consumerTransport = await createWebRtcTransport(socket);
       }
-    });
-
-    socket.on('transport-connect', async ({ dtlsParameters }) => {
-      console.log('DTLS PARAMS', { dtlsParameters });
-      await producerTransport?.connect({ dtlsParameters });
-    });
-
-    socket.on('transport-produce', async ({ kind, rtpParameters }) => {
-      producer = await producerTransport?.produce({
-        kind,
-        rtpParameters,
-      });
-
-      producer?.on('transportclose', () => {
-        console.log('Transport for this producer closed');
-        producer?.close();
-      });
-
-      socket.emit('transport-produce', { id: producer?.id });
     });
 
     socket.on('transport-recv-connect', async ({ dtlsParameters }) => {
@@ -201,6 +239,7 @@ const main = async () => {
         socket.emit('consume', { params });
       } catch (error) {
         if (error instanceof Error) {
+          console.log(error);
           socket.emit('consume', { params: { error } });
         }
       }
